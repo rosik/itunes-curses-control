@@ -1,0 +1,116 @@
+#!/usr/bin/python
+
+import curses, traceback
+import subprocess
+import time
+
+class MainWindow:
+    def __init__(self):
+        mainscr = curses.initscr()
+        mainscr.addstr(1, 8,  "iTunes controller")
+        mainscr.refresh()
+        self._stdscr = curses.newwin(16, 29, 2, 2)
+        self._devnull = open('/dev/null', 'w')
+        # Turn off echoing of keys, and enter cbreak mode,
+        # where no buffering is performed on keyboard input
+        curses.noecho()
+        curses.cbreak()
+        curses.curs_set(0)
+
+        self._stop = False
+        self._period = 1
+        self._stdscr.timeout(self._period)
+        self._string = ""
+        self._error_string = ""
+
+    def redraw_and_getch(self):
+        while not self._stop:
+            self.redraw()
+            ch = self._stdscr.getch()
+            if ch != -1:
+                return ch
+
+    def redraw(self):
+        self._stdscr.addstr(1,  2, time.strftime("%a, %d %b %Y %H:%M:%S"))
+
+        state = self.osascript('tell application "iTunes" to player state').rstrip()
+        vol = m.osascript('output volume of (get volume settings)')
+        self._stdscr.addstr(2,  2,  "%-14s Volume: %s" % (state or "", vol))
+        self._stdscr.move(3, 2); self._stdscr.clrtoeol()
+        self._stdscr.move(4, 2); self._stdscr.clrtoeol()
+
+        if state == "playing":
+            artist = self.osascript('tell application "iTunes" to artist of current track')
+            self._stdscr.addstr(3,  2,  artist or "")
+            track = self.osascript('tell application "iTunes" to name of current track')
+            self._stdscr.addstr(4,  2,  track or "")
+
+        bottom = 6
+        self._stdscr.hline(bottom-1, 1, "_", 100)
+        self._stdscr.addstr(bottom+1, 2,  "space - play/pause")
+        self._stdscr.addstr(bottom+2, 2,  "n     - next song")
+        self._stdscr.addstr(bottom+3, 2,  "p     - previous song")
+        self._stdscr.addstr(bottom+4, 2,  "s     - toggle shuffle")
+        self._stdscr.addstr(bottom+5, 2,  "+     - volume up")
+        self._stdscr.addstr(bottom+6, 2,  "-     - volume down")
+        self._stdscr.addstr(bottom+7, 2,  "q     - quit controller")
+
+        self._stdscr.box()
+        self._stdscr.refresh()
+
+    def addstr(self, something):
+        self._string = something.__repr__()
+
+    def stop(self):
+        self._stop = True
+
+    def osascript(self, str):
+        try:
+            return subprocess.check_output(["""osascript -e '%s'""" % str], shell=True, stderr=self._devnull)
+        except Exception as e:
+            pass
+
+    def forget_error(self):
+        self._error_string = ""
+
+def restore_terminal():
+    #self._stdscr.keypad(0)
+    curses.echo()
+    curses.nocbreak()
+    curses.endwin()
+
+try:
+    print subprocess.check_output(["""osascript -e 'tell application "iTunes" to player state'"""], shell=True)
+except:
+    exit(1)
+
+m = None
+try:
+    m = MainWindow()
+    x=0
+    while x != ord('q'):
+        x = m.redraw_and_getch()
+        m.addstr(x)
+        m.forget_error()
+        if x == ord(' '):
+            m.osascript("""tell application "iTunes" to playpause""")
+        if x == ord('n'):
+            m.osascript("""tell application "iTunes" to next track""")
+        if x == ord('p'):
+            m.osascript("""tell application "iTunes" to previous track""")
+        if x == ord('s'):
+            m.osascript("""tell application "iTunes" to toggle shuffle""")
+        if x == ord('+') or x == ord('='):
+            vol = m.osascript("output volume of (get volume settings)")
+            m.osascript("set volume output volume %d" % (int(vol)+5))
+        if x == ord('-') or x == ord('_'):
+            vol = m.osascript("output volume of (get volume settings)")
+            m.osascript("set volume output volume %d" % (int(vol)-5))
+except KeyboardInterrupt:
+    m.stop()
+    restore_terminal()
+except:
+    restore_terminal()
+    traceback.print_exc()
+
+restore_terminal()
