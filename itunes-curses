@@ -33,9 +33,9 @@ class MainWindow:
     def redraw(self):
         self._stdscr.addstr(1,  2, time.strftime("%a, %d %b %Y %H:%M:%S"))
 
-        state = self.osascript('tell application "iTunes" to player state').rstrip()
+        state = (self.osascript('tell application "iTunes" to player state') or "").rstrip()
         vol = m.osascript('output volume of (get volume settings)')
-        self._stdscr.addstr(2,  2,  "%-14s Volume: %s" % (state or "", vol))
+        self._stdscr.addstr(2,  2,  "%-14s Volume: %s" % (state, vol))
         self._stdscr.move(3, 2); self._stdscr.clrtoeol()
         self._stdscr.move(4, 2); self._stdscr.clrtoeol()
 
@@ -50,7 +50,7 @@ class MainWindow:
         self._stdscr.addstr(bottom+1, 2,  "space - play/pause")
         self._stdscr.addstr(bottom+2, 2,  "n     - next song")
         self._stdscr.addstr(bottom+3, 2,  "p     - previous song")
-        self._stdscr.addstr(bottom+4, 2,  "s     - toggle shuffle")
+        #self._stdscr.addstr(bottom+4, 2,  "s     - toggle shuffle")
         self._stdscr.addstr(bottom+5, 2,  "+     - volume up")
         self._stdscr.addstr(bottom+6, 2,  "-     - volume down")
         self._stdscr.addstr(bottom+7, 2,  "q     - quit controller")
@@ -98,8 +98,8 @@ try:
             m.osascript("""tell application "iTunes" to next track""")
         if x == ord('p'):
             m.osascript("""tell application "iTunes" to previous track""")
-        if x == ord('s'):
-            m.osascript("""tell application "iTunes" to toggle shuffle""")
+        # if x == ord('s'):
+        #     m.osascript("""tell application "iTunes" to toggle shuffle""")
         if x == ord('+') or x == ord('='):
             vol = m.osascript("output volume of (get volume settings)")
             m.osascript("set volume output volume %d" % (int(vol)+5))
